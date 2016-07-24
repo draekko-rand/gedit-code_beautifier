@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=code_beautifier
+IAge=3
+Name=Code Beautifier
+Description=Plugin for formatting source code
+Authors=Ben Touchette
+Copyright=Copyright @ 2016 Ben Touchette
+Website=http://github.com/draekko-rand/gedit-code_beautifier
