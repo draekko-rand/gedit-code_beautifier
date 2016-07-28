@@ -7,6 +7,7 @@ import os.path
 from os.path import expanduser
 #import pdb; pdb.set_trace()
 
+OPTIONS=None
 HOME=expanduser("~")
 FILENAME = HOME+"/.codebeautifier"
 TREEVIEW = None
@@ -49,8 +50,11 @@ class CodeBeautifierPluginAppActivatable(GObject.Object, Gedit.AppActivatable, P
     app = GObject.Property(type=Gedit.App)
 
     def __init__(self):
+        global LANGUAGE
+        global OPTION
         GObject.Object.__init__(self)
         LANGUAGE = _load_setting()
+        OPTION = CodeBeautifierPluginOptions.get_instance()
 
     def do_activate(self):
         self.app.set_accels_for_action("win.codebeautifier", ACCELERATOR)
@@ -71,12 +75,16 @@ class CodeBeautifierPluginWindowActivatable(GObject.Object, Gedit.WindowActivata
     window = GObject.property(type=Gedit.Window)
 
     def __init__(self):
+        global LANGUAGE
+        global OPTION
         GObject.Object.__init__(self)
         self.settings = Gio.Settings.new("org.gnome.gedit.preferences.editor")
         LANGUAGE = _load_setting()
+        OPTION = CodeBeautifierPluginOptions.get_instance()
 
     def do_create_configure_widget(self):
-        return CodeBeautifierPluginOptions.get_instance().create_configure_dialog()
+        ret = CodeBeautifierPluginOptions.get_instance().create_configure_dialog()
+        return ret
 
     def do_activate(self):
         action = Gio.SimpleAction(name="codebeautifier")
@@ -99,7 +107,13 @@ class CodeBeautifierPluginWindowActivatable(GObject.Object, Gedit.WindowActivata
         if LANGUAGE == None:
             return code
 
-        command = ["~/.local/share/gedit/plugins/code-beautifier/code_beautifier/astyle --style="+LANGUAGE+" --indent=tab"]
+        view = self.window.get_active_view()
+        tabwidth = view.get_tab_width()
+        tabval = str(tabwidth)
+        maxwidth=view.get_right_margin_position()
+        maxwidthval=str(maxwidth)
+        command = ["~/.local/share/gedit/plugins/code-beautifier/code_beautifier/astyle --style="+LANGUAGE+" -xC"+ maxwidthval +" -c -s"+tabval]
+        print(command)
 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         process.stdin.write(bytes(code, 'utf-8'))
@@ -115,24 +129,17 @@ class CodeBeautifierPluginOptions(object):
     def __init__(self):
         global LANGUAGE
         LANGUAGE = _load_setting()
+        print("Loaded Language:"+LANGUAGE)
 
     @classmethod
     def get_instance(cls):
+        """ Get singleton instance """
         if cls.singleton is None:
             cls.singleton = cls()
         return cls.singleton
 
-    def _selection_changed(first, second):
-        global LANGUAGE
-        global TREEVIEW
-        (model, iter) = second.get_selected()
-        LANGUAGE = model[iter][0]
-        indexval = get_index(STYLES, LANGUAGE)
-        TREEVIEW.set_cursor(indexval);
-        _save_setting(LANGUAGE)
-        return True
-
     def create_configure_dialog(self):
+        """ Creates configure dialog using GTK """
         global LANGUAGE
         global TREEVIEW
 
@@ -160,3 +167,13 @@ class CodeBeautifierPluginOptions(object):
         print(LANGUAGE + ":" + str(indexval));
 
         return vbox
+
+    def _selection_changed(first, second):
+        global LANGUAGE
+        global TREEVIEW
+        (model, iter) = second.get_selected()
+        LANGUAGE = model[iter][0]
+        indexval = get_index(STYLES, LANGUAGE)
+        TREEVIEW.set_cursor(indexval);
+        _save_setting(LANGUAGE)
+        return True
