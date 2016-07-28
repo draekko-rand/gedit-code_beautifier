@@ -7,7 +7,7 @@ import os.path
 from os.path import expanduser
 #import pdb; pdb.set_trace()
 
-OPTIONS=None
+#OPTIONS=None
 HOME=expanduser("~")
 FILENAME = HOME+"/.codebeautifier"
 TREEVIEW = None
@@ -43,6 +43,41 @@ def _load_setting():
         LLANGUAGE = "google"
     return LLANGUAGE
 
+def _selection_changed(second):
+    global LANGUAGE
+    global TREEVIEW
+    (model, iter) = second.get_selected()
+    LANGUAGE = model[iter][0]
+    indexval = get_index(STYLES, LANGUAGE)
+    TREEVIEW.set_cursor(indexval);
+    _save_setting(LANGUAGE)
+    return True
+
+def create_configure_dialog():
+    global LANGUAGE
+    global TREEVIEW
+
+    vbox = Gtk.VBox()
+    vbox.set_border_width(6)
+
+    liststore = Gtk.ListStore(str)
+    for styles_ref in STYLES:
+        liststore.append([styles_ref])
+
+    TREEVIEW = Gtk.TreeView(liststore)
+    cell = Gtk.CellRendererText()
+    column = Gtk.TreeViewColumn('Language Styles')
+    column.pack_start(cell, True)
+    column.set_attributes(cell, text=0)
+    column.set_sort_column_id(0)
+    TREEVIEW.append_column(column)
+    indexval = get_index(STYLES, LANGUAGE)
+    TREEVIEW.set_cursor(indexval);
+    tree_selection = TREEVIEW.get_selection()
+    tree_selection.connect("changed", _selection_changed)
+
+    vbox.pack_start(TREEVIEW, False, False, 0)
+    return vbox
 
 ################## ADD MENU ##################
 class CodeBeautifierPluginAppActivatable(GObject.Object, Gedit.AppActivatable, PeasGtk.Configurable):
@@ -51,10 +86,8 @@ class CodeBeautifierPluginAppActivatable(GObject.Object, Gedit.AppActivatable, P
 
     def __init__(self):
         global LANGUAGE
-        global OPTION
         GObject.Object.__init__(self)
         LANGUAGE = _load_setting()
-        OPTION = CodeBeautifierPluginOptions.get_instance()
 
     def do_activate(self):
         self.app.set_accels_for_action("win.codebeautifier", ACCELERATOR)
@@ -76,14 +109,14 @@ class CodeBeautifierPluginWindowActivatable(GObject.Object, Gedit.WindowActivata
 
     def __init__(self):
         global LANGUAGE
-        global OPTION
         GObject.Object.__init__(self)
         self.settings = Gio.Settings.new("org.gnome.gedit.preferences.editor")
         LANGUAGE = _load_setting()
-        OPTION = CodeBeautifierPluginOptions.get_instance()
 
     def do_create_configure_widget(self):
-        ret = CodeBeautifierPluginOptions.get_instance().create_configure_dialog()
+        print(" ")
+        ret = create_configure_dialog()
+        print(" ")
         return ret
 
     def do_activate(self):
@@ -113,67 +146,8 @@ class CodeBeautifierPluginWindowActivatable(GObject.Object, Gedit.WindowActivata
         maxwidth=view.get_right_margin_position()
         maxwidthval=str(maxwidth)
         command = ["~/.local/share/gedit/plugins/code-beautifier/code_beautifier/astyle --style="+LANGUAGE+" -xC"+ maxwidthval +" -c -s"+tabval]
-        print(command)
 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         process.stdin.write(bytes(code, 'utf-8'))
         process.stdin.close()
         return process.stdout.read()
-
-################## OPTIONS DIALOG ##################
-class CodeBeautifierPluginOptions(object):
-
-    ## static singleton reference
-    singleton = None
-
-    def __init__(self):
-        global LANGUAGE
-        LANGUAGE = _load_setting()
-        print("Loaded Language:"+LANGUAGE)
-
-    @classmethod
-    def get_instance(cls):
-        """ Get singleton instance """
-        if cls.singleton is None:
-            cls.singleton = cls()
-        return cls.singleton
-
-    def create_configure_dialog(self):
-        """ Creates configure dialog using GTK """
-        global LANGUAGE
-        global TREEVIEW
-
-        vbox = Gtk.VBox()
-        vbox.set_border_width(6)
-
-        liststore = Gtk.ListStore(str)
-        for styles_ref in STYLES:
-            liststore.append([styles_ref])
-
-        TREEVIEW = Gtk.TreeView(liststore)
-        cell = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn('Language Styles')
-        column.pack_start(cell, True)
-        column.set_attributes(cell, text=0)
-        column.set_sort_column_id(0)
-        TREEVIEW.append_column(column)
-        indexval = get_index(STYLES, LANGUAGE)
-        TREEVIEW.set_cursor(indexval);
-        tree_selection = TREEVIEW.get_selection()
-        tree_selection.connect("changed", self._selection_changed)
-
-        vbox.pack_start(TREEVIEW, False, False, 0)
-
-        print(LANGUAGE + ":" + str(indexval));
-
-        return vbox
-
-    def _selection_changed(first, second):
-        global LANGUAGE
-        global TREEVIEW
-        (model, iter) = second.get_selected()
-        LANGUAGE = model[iter][0]
-        indexval = get_index(STYLES, LANGUAGE)
-        TREEVIEW.set_cursor(indexval);
-        _save_setting(LANGUAGE)
-        return True
