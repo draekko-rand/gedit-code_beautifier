@@ -145,7 +145,7 @@ class CodeBeautifierPluginWindowActivatable(GObject.Object, Gedit.WindowActivata
         tabval = str(tabwidth)
         maxwidth=view.get_right_margin_position()
         maxwidthval=str(maxwidth)
-        command = ["~/.local/share/gedit/plugins/code-beautifier/code_beautifier/astyle --style="+LANGUAGE+" -xC"+ maxwidthval +" -c -s"+tabval]
+        command = ["~/.local/share/gedit/plugins/code_beautifier/code_beautifier/astyle --style="+LANGUAGE+" -xC"+ maxwidthval +" -c -s"+tabval]
 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         process.stdin.write(bytes(code, 'utf-8'))
